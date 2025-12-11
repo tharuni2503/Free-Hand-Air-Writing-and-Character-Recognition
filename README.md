@@ -79,14 +79,6 @@ Two fingers → Pause
 
 Toolbar click → Color change / Eraser / Quit
 
-📸 Output Screenshots
-
-add your images here
-
-![Character Recognition Output](images/your_image.png)
-![Digit Recognition](images/your_image.png)
-![Eraser Tool](images/your_image.png)
-
 🧠 How It Works (Simple Explanation)
 
 Webcam captures the video.
@@ -114,5 +106,6 @@ Faster recognition using lightweight models
 Gesture-based undo/redo
 
 📄 License
+
 
 This project is for educational and research purposes.
