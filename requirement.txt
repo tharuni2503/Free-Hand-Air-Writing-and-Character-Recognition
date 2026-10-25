@@ -1,8 +1,5 @@
-#pip install -r requirement.txt
-opencv-python==4.5.5.64
-keyboard==0.13.5
-mediapipe==0.8.9.1
-numpy==1.19.5
-pygame==2.0.1
-tensorflow==2.5.0
-flask==2.1.0
+Flask==3.0.3
+gunicorn==22.0.0
+numpy==1.26.4
+Pillow==10.4.0
+tensorflow-cpu==2.15.1
