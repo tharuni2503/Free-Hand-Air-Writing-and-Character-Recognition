@@ -70,7 +70,9 @@ def predict():
         scores = model.predict(tensor, verbose=0)[0]
         idx = int(np.argmax(scores))
         label = labels[idx] if idx < len(labels) else str(idx)
-        return jsonify({"label": label.upper(), "confidence": round(float(scores[idx]), 4)})
+        top_indices = np.argsort(scores)[-3:][::-1]
+        alternatives = [{"label": (labels[int(i)] if int(i) < len(labels) else str(int(i))).upper(), "confidence": round(float(scores[int(i)]), 4)} for i in top_indices]
+        return jsonify({"label": label.upper(), "confidence": round(float(scores[idx]), 4), "alternatives": alternatives})
     except (ValueError, binascii.Error) as exc:
         return jsonify({"error": str(exc) or "Could not read image."}), 400
     except Exception:
