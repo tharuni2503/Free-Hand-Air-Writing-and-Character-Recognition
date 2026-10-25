@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: freehand-air-writing
+    runtime: python
+    buildCommand: pip install -r requirement.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /health
