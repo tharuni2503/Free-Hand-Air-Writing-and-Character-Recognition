@@ -11,7 +11,7 @@ body{background:radial-gradient(ellipse at top,#17233e 0,#0b1020 55%);color:#eef
 .panel{background:#121a2def;border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 20px 50px #0003}
 .writing-area{position:relative;background:#05070c;border:1px solid #34415a;border-radius:14px;overflow:hidden;touch-action:none}
 #camera,#drawCanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:contain}
-#camera{position:absolute;inset:0;opacity:.18;transform:scaleX(-1)}#drawCanvas{position:relative;cursor:crosshair}
+#camera{position:absolute;z-index:2;right:10px;top:10px;width:160px;height:120px;opacity:1;transform:scaleX(-1);border:1px solid #77e4c2;border-radius:8px;background:#111}#drawCanvas{position:relative;cursor:crosshair}
 .btn-accent{background:var(--accent);color:#08121a;border:0;font-weight:700}.btn-accent:hover{background:#a0f5dd;color:#08121a}
 .form-select{background-color:#0b1020;color:#eef3ff;border-color:#34415a}.result{font-size:2.4rem;font-weight:800;color:var(--accent);min-height:3rem}.muted{color:#aab7d0}.status{font-size:.9rem;min-height:1.5rem}
 .tip{border:1px solid var(--line);border-radius:12px;padding:14px;height:100%}@media(max-width:767px){.hero{padding-top:30px}.panel{padding:15px}}
