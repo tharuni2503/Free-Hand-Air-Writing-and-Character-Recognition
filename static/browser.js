@@ -51,7 +51,7 @@ function onResults(res){
  // Map fingertip from the camera to the full page, including toolbar controls.
  if(indexUp&&!middleUp){
   const ws=document.getElementById('workspace').getBoundingClientRect();
-  const screenX=ws.left+(1-lm[8].x)*ws.width, screenY=ws.top+lm[8].y*ws.height;
+  const screenX=(1-lm[8].x)*window.innerWidth, screenY=lm[8].y*window.innerHeight;
   const hit=document.elementFromPoint(screenX,screenY);
   const target=hit&&hit.closest('[data-color],#eraserBtn,#clearOverlayBtn,#recognizeOverlayBtn,#mode');
   if(target){lastPoint=null;handleHover(target);return;}
