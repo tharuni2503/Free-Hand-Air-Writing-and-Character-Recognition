@@ -6,7 +6,7 @@ ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='
 let currentColor='#ff2020', erasing=false;
 document.querySelectorAll('[data-color]').forEach(btn=>btn.addEventListener('click',()=>{currentColor=btn.dataset.color;erasing=false;document.querySelectorAll('[data-color]').forEach(b=>b.classList.toggle('active',b===btn));document.getElementById('eraserBtn').classList.remove('active');}));
 document.getElementById('eraserBtn').addEventListener('click',()=>{erasing=true;document.getElementById('eraserBtn').classList.add('active');document.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('active'));});
-let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false, hoverTarget=null, hoverSince=null, hoverLatched=false;
+let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false, hoverTarget=null, hoverSince=null, hoverLatched=false, recognizeGestureSince=null, recognizeGestureLatched=false;
 function setStatus(s){status.textContent=s;}
 function clearCanvas(){ctx.clearRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='';}
 clearOverlayBtn.addEventListener('click',clearCanvas);
@@ -26,11 +26,17 @@ async function startCamera(){
 function stopCamera(){if(camera){camera.stop();camera=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}if(hands){hands.close();hands=null;}video.srcObject=null;cameraBtn.textContent='Start camera';lastPoint=null;setStatus('Camera stopped. Mouse/touch drawing is still available.');}
 cameraBtn.addEventListener('click',()=>{if(stream)stopCamera();else startCamera();});
 function onResults(res){
- if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;openPalmSince=null;clearGestureLatched=false;resetHover();return;}
+ if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;openPalmSince=null;clearGestureLatched=false;recognizeGestureSince=null;recognizeGestureLatched=false;resetHover();return;}
  const lm=res.multiHandLandmarks[0];
  const indexUp=lm[8].y<lm[6].y, middleUp=lm[12].y<lm[10].y;
  const ringUp=lm[16].y<lm[14].y, pinkyUp=lm[20].y<lm[18].y;
  const openPalm=indexUp&&middleUp&&ringUp&&pinkyUp;
+ // Hold index + middle fingers up to recognize the current drawing hands-free.
+ if(indexUp&&middleUp&&!ringUp&&!pinkyUp){
+  lastPoint=null;resetHover();
+  if(!recognizeGestureLatched){if(recognizeGestureSince===null)recognizeGestureSince=Date.now();const elapsed=Date.now()-recognizeGestureSince;setStatus(elapsed>=900?'Recognizing your drawing…':'Hold index + middle fingers up to recognize…');if(elapsed>=900){recognizeCharacter();recognizeGestureLatched=true;recognizeGestureSince=null;}}
+  return;
+ }else{recognizeGestureSince=null;recognizeGestureLatched=false;}
  // Hold an open palm for 1.2 seconds to clear; one clear per gesture.
  if(openPalm){
   lastPoint=null;
@@ -61,7 +67,10 @@ function onResults(res){
 function resetHover(){if(hoverTarget)hoverTarget.classList.remove('gesture-hover');hoverTarget=null;hoverSince=null;hoverLatched=false;}
 function handleHover(target){if(hoverTarget!==target){resetHover();hoverTarget=target;hoverSince=Date.now();}target.classList.add('gesture-hover');const elapsed=Date.now()-hoverSince;setStatus('Hold fingertip over '+(target.getAttribute('aria-label')||target.title||target.textContent.trim())+'…');if(elapsed<850||hoverLatched)return;hoverLatched=true;if(target.matches('[data-color]')){currentColor=target.dataset.color;erasing=false;document.querySelectorAll('[data-color]').forEach(b=>b.classList.toggle('active',b===target));document.getElementById('eraserBtn').classList.remove('active');setStatus('Pen color selected.');}else if(target.id==='eraserBtn'){erasing=true;target.classList.add('active');document.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('active'));setStatus('Eraser selected.');}else if(target.id==='clearOverlayBtn'){clearCanvas();setStatus('Canvas cleared.');}else if(target.id==='recognizeOverlayBtn'){recognizeCharacter();}else if(target.id==='mode'){mode.value=mode.value==='alphabet'?'number':'alphabet';setStatus('Recognition mode: '+mode.value+'.');}}
 async function recognizeCharacter(){
- const image=canvas.toDataURL('image/png');result.textContent='…';confidence.textContent='Running CNN prediction…';
+ if(Date.now()-lastPrediction<1200)return;lastPrediction=Date.now();
+ // Model expects white ink on a black background; ignore the live camera and pen colors.
+ const prep=document.createElement('canvas');prep.width=canvas.width;prep.height=canvas.height;const pctx=prep.getContext('2d');pctx.fillStyle='#000';pctx.fillRect(0,0,prep.width,prep.height);pctx.drawImage(canvas,0,0);const pixels=pctx.getImageData(0,0,prep.width,prep.height);for(let i=0;i<pixels.data.length;i+=4){const a=pixels.data[i+3];if(a>0){pixels.data[i]=255;pixels.data[i+1]=255;pixels.data[i+2]=255;pixels.data[i+3]=255;}}pctx.putImageData(pixels,0,0);
+ const image=prep.toDataURL('image/png');result.textContent='…';confidence.textContent='Running CNN prediction…';
  try{const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,mode:mode.value})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Prediction failed');result.textContent=data.label;confidence.textContent='Model score: '+(data.confidence*100).toFixed(1)+'%';setStatus('Prediction complete.');}
  catch(err){result.textContent='—';confidence.textContent=err.message;setStatus('Could not recognize this drawing.');}
 }
