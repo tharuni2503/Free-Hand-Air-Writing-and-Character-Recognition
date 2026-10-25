@@ -74,7 +74,7 @@ function onResults(res){
  }else{lastPoint=null;if(middleUp)setStatus('Drawing paused. Open palm + hold to clear canvas.');}
 }
 async function recognizeCharacter(){
- const image=canvas.toDataURL('image/png');recognizeBtn.disabled=true;result.textContent='…';confidence.textContent='Running CNN prediction…';
+ const image=canvas.toDataURL('image/png');result.textContent='…';confidence.textContent='Running CNN prediction…';
  try{const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,mode:mode.value})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Prediction failed');result.textContent=data.label;confidence.textContent='Model score: '+(data.confidence*100).toFixed(1)+'%';setStatus('Prediction complete.');}
  catch(err){result.textContent='—';confidence.textContent=err.message;setStatus('Could not recognize this drawing.');}
 }
