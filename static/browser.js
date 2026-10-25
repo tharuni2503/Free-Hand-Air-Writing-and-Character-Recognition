@@ -1,18 +1,20 @@
 (() => {
 const video=document.getElementById('camera'), canvas=document.getElementById('drawCanvas'), ctx=canvas.getContext('2d');
-const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), clearOverlayBtn=document.getElementById('clearOverlayBtn'), recognizeOverlayBtn=document.getElementById('recognizeOverlayBtn'), recognizeBtn=document.getElementById('recognizeBtn');
+const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearOverlayBtn=document.getElementById('clearOverlayBtn'), recognizeOverlayBtn=document.getElementById('recognizeOverlayBtn');
 const mode=document.getElementById('mode'), result=document.getElementById('result'), confidence=document.getElementById('confidence');
-ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=18;
+ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#ff2020';ctx.lineWidth=12;
+let currentColor='#ff2020', erasing=false;
+document.querySelectorAll('[data-color]').forEach(btn=>btn.addEventListener('click',()=>{currentColor=btn.dataset.color;erasing=false;document.querySelectorAll('[data-color]').forEach(b=>b.classList.toggle('active',b===btn));document.getElementById('eraserBtn').classList.remove('active');}));
+document.getElementById('eraserBtn').addEventListener('click',()=>{erasing=true;document.getElementById('eraserBtn').classList.add('active');document.querySelectorAll('[data-color]').forEach(b=>b.classList.remove('active'));});
 let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false, clearHoverSince=null, clearHoverLatched=false, recognizeHoverSince=null, recognizeHoverLatched=false;
 function setStatus(s){status.textContent=s;}
-function clearCanvas(){ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='Canvas cleared.';}
-clearBtn.addEventListener('click',clearCanvas);
+function clearCanvas(){ctx.clearRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='';}
 clearOverlayBtn.addEventListener('click',clearCanvas);
 canvas.addEventListener('pointerdown',e=>{pointerDrawing=true;lastPoint=canvasPoint(e);canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{if(!pointerDrawing)return;const p=canvasPoint(e);drawSegment(lastPoint,p);lastPoint=p;});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,()=>{pointerDrawing=false;lastPoint=null;}));
 function canvasPoint(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};}
-function drawSegment(a,b){if(!a||!b)return;ctx.strokeStyle='#fff';ctx.lineWidth=18;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+function drawSegment(a,b){if(!a||!b)return;ctx.globalCompositeOperation=erasing?'destination-out':'source-over';ctx.strokeStyle=currentColor;ctx.lineWidth=erasing?34:12;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.globalCompositeOperation='source-over';}
 async function startCamera(){
  if(!navigator.mediaDevices?.getUserMedia){setStatus('This browser does not support camera access. Try a recent browser over HTTPS.');return;}
  try{
@@ -75,9 +77,7 @@ async function recognizeCharacter(){
  const image=canvas.toDataURL('image/png');recognizeBtn.disabled=true;result.textContent='…';confidence.textContent='Running CNN prediction…';
  try{const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,mode:mode.value})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Prediction failed');result.textContent=data.label;confidence.textContent='Model score: '+(data.confidence*100).toFixed(1)+'%';setStatus('Prediction complete.');}
  catch(err){result.textContent='—';confidence.textContent=err.message;setStatus('Could not recognize this drawing.');}
- finally{recognizeBtn.disabled=false;}
 }
-recognizeBtn.addEventListener('click',recognizeCharacter);
 recognizeOverlayBtn.addEventListener('click',recognizeCharacter);
 window.addEventListener('pagehide',()=>{if(stream)stopCamera();});
 })();
