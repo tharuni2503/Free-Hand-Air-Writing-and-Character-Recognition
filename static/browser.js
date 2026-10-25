@@ -1,9 +1,9 @@
 (() => {
 const video=document.getElementById('camera'), canvas=document.getElementById('drawCanvas'), ctx=canvas.getContext('2d');
-const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), clearOverlayBtn=document.getElementById('clearOverlayBtn'), recognizeBtn=document.getElementById('recognizeBtn');
+const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), clearOverlayBtn=document.getElementById('clearOverlayBtn'), recognizeOverlayBtn=document.getElementById('recognizeOverlayBtn'), recognizeBtn=document.getElementById('recognizeBtn');
 const mode=document.getElementById('mode'), result=document.getElementById('result'), confidence=document.getElementById('confidence');
 ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=18;
-let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false, clearHoverSince=null, clearHoverLatched=false;
+let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false, clearHoverSince=null, clearHoverLatched=false, recognizeHoverSince=null, recognizeHoverLatched=false;
 function setStatus(s){status.textContent=s;}
 function clearCanvas(){ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='Canvas cleared.';}
 clearBtn.addEventListener('click',clearCanvas);
@@ -28,7 +28,7 @@ async function startCamera(){
 function stopCamera(){if(camera){camera.stop();camera=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}if(hands){hands.close();hands=null;}video.srcObject=null;cameraBtn.textContent='Start camera';lastPoint=null;setStatus('Camera stopped. Mouse/touch drawing is still available.');}
 cameraBtn.addEventListener('click',()=>{if(stream)stopCamera();else startCamera();});
 function onResults(res){
- if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;openPalmSince=null;clearGestureLatched=false;clearHoverSince=null;clearHoverLatched=false;clearOverlayBtn.classList.remove('gesture-hover');return;}
+ if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;openPalmSince=null;clearGestureLatched=false;clearHoverSince=null;clearHoverLatched=false;recognizeHoverSince=null;recognizeHoverLatched=false;clearOverlayBtn.classList.remove('gesture-hover');recognizeOverlayBtn.classList.remove('gesture-hover');return;}
  const lm=res.multiHandLandmarks[0];
  const indexUp=lm[8].y<lm[6].y, middleUp=lm[12].y<lm[10].y;
  const ringUp=lm[16].y<lm[14].y, pinkyUp=lm[20].y<lm[18].y;
@@ -47,9 +47,18 @@ function onResults(res){
  // Draw only when index is extended and middle finger is folded.
  if(indexUp&&!middleUp){
   const p={x:(1-lm[8].x)*canvas.width,y:lm[8].y*canvas.height};
-  const cr=canvas.getBoundingClientRect(), br=clearOverlayBtn.getBoundingClientRect();
+  const cr=canvas.getBoundingClientRect(), br=clearOverlayBtn.getBoundingClientRect(), rr=recognizeOverlayBtn.getBoundingClientRect();
   const fingertipX=cr.left+(1-lm[8].x)*cr.width, fingertipY=cr.top+lm[8].y*cr.height;
   const overClear=fingertipX>=br.left&&fingertipX<=br.right&&fingertipY>=br.top&&fingertipY<=br.bottom;
+  const overRecognize=fingertipX>=rr.left&&fingertipX<=rr.right&&fingertipY>=rr.top&&fingertipY<=rr.bottom;
+  if(overRecognize){
+   lastPoint=null;clearHoverSince=null;clearHoverLatched=false;clearOverlayBtn.classList.remove('gesture-hover');
+   if(!recognizeHoverLatched){if(recognizeHoverSince===null)recognizeHoverSince=Date.now();recognizeOverlayBtn.classList.add('gesture-hover');
+    const elapsed=Date.now()-recognizeHoverSince;setStatus(elapsed>=900?'Recognizing character…':'Hold your fingertip over ✓ Recognize…');
+    if(elapsed>=900){recognizeCharacter();recognizeHoverLatched=true;recognizeHoverSince=null;setStatus('Recognizing character…');}
+   }
+   return;
+  }else{recognizeHoverSince=null;recognizeHoverLatched=false;recognizeOverlayBtn.classList.remove('gesture-hover');}
   if(overClear){
    lastPoint=null;
    if(!clearHoverLatched){if(clearHoverSince===null)clearHoverSince=Date.now();clearOverlayBtn.classList.add('gesture-hover');
@@ -62,11 +71,13 @@ function onResults(res){
   setStatus('Writing: point your fingertip at ✕ Clear and hold to clear.');
  }else{lastPoint=null;if(middleUp)setStatus('Drawing paused. Open palm + hold to clear canvas.');}
 }
-recognizeBtn.addEventListener('click',async()=>{
+async function recognizeCharacter(){
  const image=canvas.toDataURL('image/png');recognizeBtn.disabled=true;result.textContent='…';confidence.textContent='Running CNN prediction…';
  try{const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,mode:mode.value})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Prediction failed');result.textContent=data.label;confidence.textContent='Model score: '+(data.confidence*100).toFixed(1)+'%';setStatus('Prediction complete.');}
  catch(err){result.textContent='—';confidence.textContent=err.message;setStatus('Could not recognize this drawing.');}
  finally{recognizeBtn.disabled=false;}
-});
+}
+recognizeBtn.addEventListener('click',recognizeCharacter);
+recognizeOverlayBtn.addEventListener('click',recognizeCharacter);
 window.addEventListener('pagehide',()=>{if(stream)stopCamera();});
 })();
