@@ -1,12 +1,13 @@
 (() => {
 const video=document.getElementById('camera'), canvas=document.getElementById('drawCanvas'), ctx=canvas.getContext('2d');
-const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), recognizeBtn=document.getElementById('recognizeBtn');
+const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), clearOverlayBtn=document.getElementById('clearOverlayBtn'), recognizeBtn=document.getElementById('recognizeBtn');
 const mode=document.getElementById('mode'), result=document.getElementById('result'), confidence=document.getElementById('confidence');
 ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=18;
 let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false;
 function setStatus(s){status.textContent=s;}
 function clearCanvas(){ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='Canvas cleared.';}
 clearBtn.addEventListener('click',clearCanvas);
+clearOverlayBtn.addEventListener('click',clearCanvas);
 canvas.addEventListener('pointerdown',e=>{pointerDrawing=true;lastPoint=canvasPoint(e);canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointermove',e=>{if(!pointerDrawing)return;const p=canvasPoint(e);drawSegment(lastPoint,p);lastPoint=p;});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,()=>{pointerDrawing=false;lastPoint=null;}));
