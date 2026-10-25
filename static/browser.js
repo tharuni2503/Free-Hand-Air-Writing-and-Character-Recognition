@@ -3,7 +3,7 @@ const video=document.getElementById('camera'), canvas=document.getElementById('d
 const status=document.getElementById('status'), cameraBtn=document.getElementById('cameraBtn'), clearBtn=document.getElementById('clearBtn'), recognizeBtn=document.getElementById('recognizeBtn');
 const mode=document.getElementById('mode'), result=document.getElementById('result'), confidence=document.getElementById('confidence');
 ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#fff';ctx.lineWidth=18;
-let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0;
+let stream=null, camera=null, hands=null, lastPoint=null, drawing=false, pointerDrawing=false, lastPrediction=0, openPalmSince=null, clearGestureLatched=false;
 function setStatus(s){status.textContent=s;}
 function clearCanvas(){ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);lastPoint=null;result.textContent='—';confidence.textContent='Canvas cleared.';}
 clearBtn.addEventListener('click',clearCanvas);
@@ -27,14 +27,28 @@ async function startCamera(){
 function stopCamera(){if(camera){camera.stop();camera=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}if(hands){hands.close();hands=null;}video.srcObject=null;cameraBtn.textContent='Start camera';lastPoint=null;setStatus('Camera stopped. Mouse/touch drawing is still available.');}
 cameraBtn.addEventListener('click',()=>{if(stream)stopCamera();else startCamera();});
 function onResults(res){
- if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;return;}
- const lm=res.multiHandLandmarks[0], index=lm[8], middle=lm[12], wrist=lm[0];
- const indexUp=index.y<lm[6].y, middleUp=middle.y<lm[10].y;
+ if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){lastPoint=null;openPalmSince=null;clearGestureLatched=false;return;}
+ const lm=res.multiHandLandmarks[0];
+ const indexUp=lm[8].y<lm[6].y, middleUp=lm[12].y<lm[10].y;
+ const ringUp=lm[16].y<lm[14].y, pinkyUp=lm[20].y<lm[18].y;
+ const openPalm=indexUp&&middleUp&&ringUp&&pinkyUp;
+ // Hold an open palm for 1.2 seconds to clear; one clear per gesture.
+ if(openPalm){
+  lastPoint=null;
+  if(!clearGestureLatched){
+   if(openPalmSince===null)openPalmSince=Date.now();
+   const elapsed=Date.now()-openPalmSince;
+   setStatus(elapsed>=1200?'Open-palm gesture detected — clearing canvas.':'Hold open palm to clear canvas…');
+   if(elapsed>=1200){clearCanvas();setStatus('Canvas cleared by gesture. Point your index finger to write.');clearGestureLatched=true;openPalmSince=null;}
+  }
+  return;
+ }else{openPalmSince=null;clearGestureLatched=false;}
  // Draw only when index is extended and middle finger is folded.
  if(indexUp&&!middleUp){
-  const p={x:(1-index.x)*canvas.width,y:index.y*canvas.height};
+  const p={x:(1-lm[8].x)*canvas.width,y:lm[8].y*canvas.height};
   if(lastPoint)drawSegment(lastPoint,p);lastPoint=p;
- }else{lastPoint=null;}
+  setStatus('Writing: show an open palm and hold to clear.');
+ }else{lastPoint=null;if(middleUp)setStatus('Drawing paused. Open palm + hold to clear canvas.');}
 }
 recognizeBtn.addEventListener('click',async()=>{
  const image=canvas.toDataURL('image/png');recognizeBtn.disabled=true;result.textContent='…';confidence.textContent='Running CNN prediction…';
